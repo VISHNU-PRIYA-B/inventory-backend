@@ -3,6 +3,7 @@ Django settings for inventory_project.
 """
 import os
 from pathlib import Path
+from datetime import timedelta
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -128,6 +129,10 @@ AUTHENTICATION_BACKENDS = [
 
 GRAPHQL_JWT = {
     'JWT_VERIFY_EXPIRATION': True,
+    'JWT_EXPIRATION_DELTA': timedelta(minutes=15),
+    'JWT_REFRESH_EXPIRATION_DELTA': timedelta(days=7),
+    'JWT_ALLOW_REFRESH': True,
+
 }
 
 
