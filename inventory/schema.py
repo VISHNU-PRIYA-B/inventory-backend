@@ -13,7 +13,6 @@ import graphql_jwt
 from accounts.schema import UserType
 from .models import InventoryRequest, IssuedItem
 
-
 # ─── Inventory Item (Excel-backed) ───────────────────────────────────────────
 
 class InventoryItemType(graphene.ObjectType):

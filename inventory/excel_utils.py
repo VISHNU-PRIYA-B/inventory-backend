@@ -197,7 +197,7 @@ def update_inventory_item(item_name, old_size, old_length, department, **kwargs)
 
             break
 
-    # 🔥 Step 2: Update ALL rows with same old type
+    #  Step 2: Update ALL rows with same old type
     if old_type and new_type:
         for row in ws.iter_rows(min_row=2):
             current_type = str(row[COL_TYPE].value).strip()
