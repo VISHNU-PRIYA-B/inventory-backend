@@ -7,6 +7,10 @@ from django.conf import settings
 import random
 from .models import PasswordResetOTP
 import threading
+import base64
+import uuid
+import os
+from django.core.files.base import ContentFile
 
 
 User = get_user_model()
@@ -27,12 +31,24 @@ def send_email_async(subject, message, from_email, recipient_list):
 class UserType(DjangoObjectType):
     class Meta:
         model = User
-        fields = ('id', 'name', 'team_name', 'email')
+        fields = ('id', 'name', 'team_name', 'email', 'profile_picture')
 
     is_admin = graphene.Boolean()
+    profile_picture_url = graphene.String()
 
     def resolve_is_admin(self, info):
         return self.is_staff
+
+    def resolve_profile_picture_url(self, info):
+        if self.profile_picture:
+            request = info.context
+            base = getattr(settings, 'MEDIA_URL', '/media/')
+            # Build absolute URL using the request host
+            try:
+                return request.build_absolute_uri(self.profile_picture.url)
+            except Exception:
+                return f"{base}{self.profile_picture}"
+        return None
 
 
 class SignupMutation(graphene.Mutation):
@@ -81,6 +97,40 @@ class LoginMutation(graphene.Mutation):
         import graphql_jwt.shortcuts as jwt_shortcuts
         token = jwt_shortcuts.get_token(user)
         return LoginMutation(success=True, message='Login successful.', token=token, user=user)
+
+
+class UpdateProfilePicture(graphene.Mutation):
+    """Accept a base64-encoded image and save it as the user's profile picture."""
+    class Arguments:
+        image_base64 = graphene.String(required=True)
+        file_name = graphene.String(required=False)
+
+    success = graphene.Boolean()
+    message = graphene.String()
+    user = graphene.Field(UserType)
+
+    def mutate(self, info, image_base64, file_name=None):
+        user = info.context.user
+        if user.is_anonymous:
+            return UpdateProfilePicture(success=False, message='Not authenticated.', user=None)
+
+        try:
+            # Strip data URI prefix if present (data:image/jpeg;base64,...)
+            if ',' in image_base64:
+                image_base64 = image_base64.split(',', 1)[1]
+
+            image_data = base64.b64decode(image_base64)
+            ext = 'jpg'
+            if file_name:
+                _, ext = os.path.splitext(file_name)
+                ext = ext.lstrip('.') or 'jpg'
+
+            unique_name = f"{uuid.uuid4().hex}.{ext}"
+            user.profile_picture.save(unique_name, ContentFile(image_data), save=True)
+            return UpdateProfilePicture(success=True, message='Profile picture updated.', user=user)
+        except Exception as e:
+            return UpdateProfilePicture(success=False, message=str(e), user=None)
+
 
 class SendPasswordOTP(graphene.Mutation):
     success = graphene.Boolean()
@@ -183,3 +233,4 @@ class Mutation(graphene.ObjectType):
 
     send_password_otp = SendPasswordOTP.Field()
     reset_password_with_otp = ResetPasswordWithOTP.Field()
+    update_profile_picture = UpdateProfilePicture.Field()

@@ -80,7 +80,6 @@ DATABASES = {
 
 AUTH_PASSWORD_VALIDATORS = []
 
-
 AUTH_USER_MODEL = 'accounts.CustomUser'
 
 CSRF_TRUSTED_ORIGINS = [
@@ -131,13 +130,11 @@ GRAPHQL_JWT = {
     'JWT_VERIFY_EXPIRATION': True,
     'JWT_EXPIRATION_DELTA': timedelta(days=7),
 
-
 }
 
 
 # Excel file path
 EXCEL_FILE_PATH = os.path.join(BASE_DIR, 'inventory.xlsx')
-
 
 # email settings
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'

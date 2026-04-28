@@ -4,7 +4,6 @@ from django.utils import timezone
 from datetime import timedelta
 from django.conf import settings
 
-
 class CustomUserManager(BaseUserManager):
     def create_user(self, name, email, password=None, **extra_fields):
         if not name:
@@ -27,6 +26,11 @@ class CustomUser(AbstractUser):
     username = None
     name = models.CharField(max_length=150, unique=True)
     team_name = models.CharField(max_length=150, blank=True, default='')
+    profile_picture = models.ImageField(
+        upload_to='profile_pics/',
+        blank=True,
+        null=True,
+    )
 
     USERNAME_FIELD = 'name'
     REQUIRED_FIELDS = ['email']
