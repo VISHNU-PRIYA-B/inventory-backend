@@ -8,10 +8,11 @@ import base64
 import os
 import uuid
 from .excel_utils import append_inventory_item, read_inventory_items,reduce_inventory_quantity
-from .models import InventoryRequest
+from .models import InventoryRequest,InventoryItem
 import graphql_jwt
 from accounts.schema import UserType
 from .models import InventoryRequest, IssuedItem
+
 
 # ─── Inventory Item (Excel-backed) ───────────────────────────────────────────
 
@@ -87,6 +88,14 @@ class AddInventoryItem(graphene.Mutation):
                 image_path = ''
 
         append_inventory_item(item_type,item_name, size, length, quantity, location, description, department, image_path)
+            # ✅ ALSO SAVE TO DB
+        InventoryItem.objects.create(
+            item_name=item_name,
+            size=size,
+            length=length,
+            quantity=quantity,
+            location=location,
+        )
         return AddInventoryItem(success=True, message='Item added to Excel.')
 
 

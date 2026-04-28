@@ -1,7 +1,6 @@
 from django.db import models
 from accounts.models import CustomUser
 
-
 # Inventory item data lives in Excel
 
 class InventoryItem(models.Model):
