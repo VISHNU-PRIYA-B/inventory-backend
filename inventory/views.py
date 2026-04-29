@@ -35,13 +35,15 @@ def download_excel(request):
         items = InventoryItem.objects.filter(department__iexact=department)
         
         for item in items:
-            issued = IssuedItem.objects.filter(
+    #  Get ALL issued users with quantity
+            issued_list = IssuedItem.objects.filter(
                 item_name__iexact=item.item_name
-            ).order_by('-issued_at').first()
+            ).order_by('-issued_at')
 
-            user_name = ''
-            if issued and issued.issued_to:
-                user_name = issued.issued_to.name
+            user_info = ', '.join([
+                f"{i.issued_to.name}-{i.quantity}"
+                for i in issued_list if i.issued_to
+            ]) or ''
 
             ws.append([
                 item.item_type,
@@ -51,7 +53,7 @@ def download_excel(request):
                 item.quantity,
                 item.location,
                 item.description,
-                user_name,
+                user_info, 
             ])
 
     response = HttpResponse(
