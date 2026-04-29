@@ -16,7 +16,7 @@
 
 import openpyxl
 from django.http import HttpResponse
-from .models import InventoryItem
+from .models import InventoryItem,IssuedItem
 
 def download_excel(request):
     wb = openpyxl.Workbook()
@@ -24,10 +24,18 @@ def download_excel(request):
     ws.title = "Inventory"
     
     # Header
-    ws.append(['Type', 'Item Name', 'Size', 'Length', 'Quantity', 'Location', 'Description', 'Department'])
+    ws.append(['Type', 'Item Name', 'Size', 'Length', 'Quantity', 'Location', 'Description', 'Department','User'])
 
     # Read from DB
     for item in InventoryItem.objects.all():
+        #  Get username from IssuedItem
+        issued = IssuedItem.objects.filter(
+            item_name__iexact=item.item_name
+        ).order_by('-issued_at').first()
+        
+        user_name = ''
+        if issued and issued.issued_to:
+            user_name = issued.issued_to.name
         ws.append([
             item.item_type,
             item.item_name,
@@ -37,6 +45,7 @@ def download_excel(request):
             item.location,
             item.description,
             item.department,
+            user_name,
         ])
 
     response = HttpResponse(
