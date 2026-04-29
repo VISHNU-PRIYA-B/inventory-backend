@@ -4,12 +4,15 @@ from accounts.models import CustomUser
 # Inventory item data lives in Excel
 
 class InventoryItem(models.Model):
+    item_type = models.CharField(max_length=200)
     item_name = models.CharField(max_length=200)
     size = models.CharField(max_length=50)
     length = models.CharField(max_length=50)
     quantity = models.IntegerField()
     location = models.CharField(max_length=200)
-    image = models.ImageField(upload_to='images/', null=True, blank=True)
+    department  = models.CharField(max_length=100, blank=True, default='')  
+    description = models.TextField(blank=True, default='')  
+    image_path  = models.CharField(max_length=500, blank=True, default='') 
 
 class InventoryRequest(models.Model):
     STATUS_CHOICES = [
