@@ -408,6 +408,8 @@ class ApproveRequest(graphene.Mutation):
                 item = InventoryItem.objects.get(
                     item_name__iexact=req.item_name,
                     department__iexact=req.department,
+                    size__iexact = req.size,
+                    length__iexact = req.length,
                 )
                 item.quantity = max(0, item.quantity - req.quantity)
                 item.save()
@@ -512,7 +514,7 @@ class DeleteInventoryItem(graphene.Mutation):
     success = graphene.Boolean()
     message = graphene.String()
 
-    def mutate(self, info, item_name, department,size,length):
+    def mutate(self, info, item_name, department,size,length,):
         try:
             item = InventoryItem.objects.get(
                 item_name__iexact=item_name,
