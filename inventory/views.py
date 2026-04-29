@@ -37,7 +37,9 @@ def download_excel(request):
         for item in items:
     #  Get ALL issued users with quantity
             issued_list = IssuedItem.objects.filter(
-                item_name__iexact=item.item_name
+                item_name__iexact=item.item_name,
+                size__iexact=item.size,
+                length__iexact=item.length,
             ).order_by('-issued_at')
 
             user_info = ', '.join([
