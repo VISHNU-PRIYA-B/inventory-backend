@@ -270,7 +270,7 @@ from django.conf import settings
 import base64
 import os
 import uuid
-from .models import InventoryRequest, InventoryItem, IssuedItem
+from .models import InventoryRequest, InventoryItem, IssuedItem, ReturnRequest
 import graphql_jwt
 from accounts.schema import UserType
 
@@ -303,6 +303,15 @@ class IssuedItemType(DjangoObjectType):
     def resolve_issued_to(self, info):
         return self.issued_to
 
+
+class ReturnRequestType(DjangoObjectType):
+    requested_by = graphene.Field(UserType)
+    class Meta:
+        model = ReturnRequest
+        fields = ('id', 'item_name', 'size', 'length', 'department',
+                  'quantity', 'status', 'created_at','requested_by')
+    def resolve_requested_by(self, info):
+        return self.requested_by
 
 # ─── Mutations ────────────────────────────────────────────────────────────────
 
@@ -528,15 +537,108 @@ class DeleteInventoryItem(graphene.Mutation):
             return DeleteInventoryItem(success=False, message='Item not found.')
 
 
+# ─── Return Request Mutations ─────────────────────────────────────────────────
+
+class CreateReturnRequest(graphene.Mutation):
+    class Arguments:
+        item_name  = graphene.String(required=True)
+        size       = graphene.String(required=True)
+        length     = graphene.String(required=True)
+        department = graphene.String(required=False, default_value='')
+        quantity   = graphene.Int(required=True)
+
+    success = graphene.Boolean()
+    message = graphene.String()
+
+    def mutate(self, info, item_name, size, length, quantity, department=''):
+        user = info.context.user
+        if user.is_anonymous:
+            raise Exception("Authentication required")
+        ReturnRequest.objects.create(
+            item_name=item_name,
+            size=size,
+            length=length,
+            department=department,
+            quantity=quantity,
+            requested_by=user,
+            status='pending',
+        )
+        return CreateReturnRequest(success=True, message='Return request submitted.')
+
+
+class ApproveReturnRequest(graphene.Mutation):
+    class Arguments:
+        return_id = graphene.Int(required=True)
+
+    success = graphene.Boolean()
+    message = graphene.String()
+
+    def mutate(self, info, return_id):
+        try:
+            ret = ReturnRequest.objects.get(id=return_id)
+            # Increase inventory quantity
+            try:
+                item = InventoryItem.objects.get(
+                    item_name__iexact=ret.item_name,
+                    size__iexact=ret.size,
+                    length__iexact=ret.length,
+                )
+                item.quantity += ret.quantity
+                item.save()
+            except InventoryItem.DoesNotExist:
+                pass
+
+            try:
+                issued = IssuedItem.objects.filter(
+                    item_name__iexact=ret.item_name,
+                    size__iexact=ret.size,
+                    length__iexact=ret.length,
+                    issued_to=ret.requested_by,
+                ).order_by('-issued_at').first()
+
+                if issued:
+                    issued.quantity -= ret.quantity
+                    if issued.quantity <= 0:
+                        issued.delete()  # remove if fully returned
+                    else:
+                        issued.save()
+            except Exception:
+                pass
+
+            ret.status = 'accepted'
+            ret.save()
+            return ApproveReturnRequest(success=True, message='Return accepted, stock updated.')
+        except ReturnRequest.DoesNotExist:
+            return ApproveReturnRequest(success=False, message='Return request not found.')
+
+
+class RejectReturnRequest(graphene.Mutation):
+    class Arguments:
+        return_id = graphene.Int(required=True)
+
+    success = graphene.Boolean()
+    message = graphene.String()
+
+    def mutate(self, info, return_id):
+        try:
+            ret = ReturnRequest.objects.get(id=return_id)
+            ret.status = 'rejected'
+            ret.save()
+            return RejectReturnRequest(success=True, message='Return rejected.')
+        except ReturnRequest.DoesNotExist:
+            return RejectReturnRequest(success=False, message='Return request not found.')
+
+
 # ─── Query ────────────────────────────────────────────────────────────────────
 
 class Query(graphene.ObjectType):
-    inventory_items   = graphene.List(InventoryItemType)
+    inventory_items    = graphene.List(InventoryItemType)
     inventory_requests = graphene.List(InventoryRequestType)
-    issued_items      = graphene.List(IssuedItemType)
+    issued_items       = graphene.List(IssuedItemType)
+    return_requests    = graphene.List(ReturnRequestType)
 
     def resolve_inventory_items(self, info):
-        return InventoryItem.objects.all()  # ✅ reads from DB
+        return InventoryItem.objects.all()
 
     def resolve_inventory_requests(self, info):
         return InventoryRequest.objects.all().order_by('-created_at')
@@ -544,16 +646,22 @@ class Query(graphene.ObjectType):
     def resolve_issued_items(self, info):
         return IssuedItem.objects.all().order_by('-issued_at')
 
+    def resolve_return_requests(self, info):
+        return ReturnRequest.objects.all().order_by('-created_at')
+
 
 # ─── Mutation Root ────────────────────────────────────────────────────────────
 
 class Mutation(graphene.ObjectType):
-    add_inventory_item       = AddInventoryItem.Field()
-    create_inventory_request = CreateInventoryRequest.Field()
-    approve_request          = ApproveRequest.Field()
-    reject_request           = RejectRequest.Field()
-    update_inventory_item    = UpdateInventoryItem.Field()
-    delete_inventory_item    = DeleteInventoryItem.Field()
+    add_inventory_item        = AddInventoryItem.Field()
+    create_inventory_request  = CreateInventoryRequest.Field()
+    approve_request           = ApproveRequest.Field()
+    reject_request            = RejectRequest.Field()
+    update_inventory_item     = UpdateInventoryItem.Field()
+    delete_inventory_item     = DeleteInventoryItem.Field()
+    create_return_request     = CreateReturnRequest.Field()
+    approve_return_request    = ApproveReturnRequest.Field()
+    reject_return_request     = RejectReturnRequest.Field()
 
     token_auth    = graphql_jwt.ObtainJSONWebToken.Field()
     verify_token  = graphql_jwt.Verify.Field()

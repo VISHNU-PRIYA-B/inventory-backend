@@ -44,3 +44,18 @@ class IssuedItem(models.Model):
     issued_to = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
     issued_at = models.DateTimeField(auto_now_add=True)
     status = models.CharField(max_length=20, default='accepted')
+
+class ReturnRequest(models.Model):
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('accepted', 'Accepted'),
+        ('rejected', 'Rejected'),
+    ]
+    item_name    = models.CharField(max_length=200)
+    size         = models.CharField(max_length=50)
+    length       = models.CharField(max_length=50)
+    department   = models.CharField(max_length=100, blank=True, default='')
+    quantity     = models.IntegerField(default=1)
+    requested_by = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True, blank=True)
+    status       = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    created_at   = models.DateTimeField(auto_now_add=True)
