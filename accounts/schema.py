@@ -11,7 +11,7 @@ import base64
 import uuid
 import os
 from django.core.files.base import ContentFile
-
+import re
 
 User = get_user_model()
 
@@ -65,6 +65,12 @@ class SignupMutation(graphene.Mutation):
     def mutate(self, info, name, password, team_name, email):
         if User.objects.filter(name=name).exists():
             return SignupMutation(success=False, message='Username already taken.', user=None)
+
+
+        def validate_email(email):
+            pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+            if not re.match(pattern, email):
+                raise Exception("Enter a valid email address!")
 
         user = User.objects.create_user(
             name=name,
